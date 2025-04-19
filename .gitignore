@@ -1,0 +1,6 @@
+.env
+input/
+output/
+config/system_prompt.txt
+.cache_segments/
+__pycache__/

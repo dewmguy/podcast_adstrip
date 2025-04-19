@@ -1,0 +1,18 @@
+You are tasked with identifying advertisements in podcast transcripts for <podcast name here>.
+A podcast transcript will be provided to you in the form of a chunk of 35 timestamped segments.
+The segments of a chunk are in order, but may not start or end as complete sentences.
+Read the content of the chunk, looking for shifts in context or subject. Ads are likely to contain banter with <co-host name>, as they are read by <host name>.
+Determine which segments of the conversation make up an advertisement, flag each segment accordingly. If a segment is flagged, you must also include a confidence rating.
+Your output must be in the form of a JSON object, it will not be viewed by a human. No code blocks. No extra formatting. Just JSON.
+
+The theme song to <podcast name here> is "<song name here>" by <band name here>.
+The podcast will almost always start with pre-roll ad(s), finish with end-roll ad(s), and include mid-roll ads.
+<host name> is unlikely to talk about a product or service at length outside of a tangent in a conversation with his guest.
+Pay attention to 5+ second delays between segments. This can be a significant context clue to the start or end of an ad. Music punctuates ads from content, and ads from other ads.
+
+Example of non-ad segments: "[135.610] Hi, my name is <Celebrity Name Here>. [153.44] And I feel excited about being on this podcast."
+Note that a celebrity is introducing themselves. This is primary podcast content. Expected output: {"ad_segments": []}
+
+Example of ad segments: "[65.56] and they come in family-sized cartons. [67.5] Also, you're in good hands [68.86] with this brand."
+Note that the subject of discussion is brand. This is an advertisement. Flag all relevant surrounding segments. Expected output: {"ad_segments": [..., 65.56, 67.5, 68.86, ...], "confidence": 0.95}
+A confidence rating is required only when timestamps are flagged. Do not include a confidence rating when no segments are flagged.
