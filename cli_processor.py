@@ -20,7 +20,7 @@ class CLIPodcastProcessor:
         self.fade_ms = 500
         self.min_confidence = 0.5
         self.min_ad_segment_length_seconds = 2.0
-        self.min_ad_segment_separation_seconds = 1.0
+        self.min_ad_segment_separation_seconds = 3.0
         self.llm_mode = llm_mode
         self.local_model = local_model
         self.gpt_model = gpt_model
