@@ -1,181 +1,106 @@
-## Overview
+# Podcast AdStrip CLI
 
-Podcast Ad-Strip uses Whisper and Chat GPT to remove ads from podcasts.
+**Podcast AdStrip CLI** is command-line tool for automatically removing ads from podcast audio files. It uses Whisper for transcription and either a local LLM or OpenAI's GPT model to identify and strip ad segments, delivering a clean version of the audio. It is a fork of https://github.com/jdrbc/podly_pure_podcasts
 
-Here's how it works:
+---
 
-- You request an episode
-- Podly downloads the requested episode
-- Whisper transcribes the episode
-- Chat GPT labels ad segments
-- Podly removes the ad segments
-- Podly delivers the ad-free version of the podcast to you
+## Features
 
-## Usage
+- Transcribes podcast audio using Whisper (local)
+- Identifies ad segments using a local LLM (via HTTP API) or OpenAI's GPT (e.g., GPT-4o)
+- Supports two context modes: `stateless` (system prompt + transcript) and `assistant` (OpenAI assistant thread)
+- Clips out ad segments with optional audio fade in/out transitions (default: 500 ms)
+- Caches transcript data for reuse and debugging
+- CLI interface for processing single files or batches from a directory
+- Allows selection of LLM backend and model dynamically via CLI flags
 
-- `config/config.yml.example` into new file `config/config.yml`. Update `openai_api_key` with your key.
-- Start the server & note the URL.
-  - For example, `192.168.0.2:5001`
-- Open 192.168.0.2:5001 in your web browser
-- Add podcast RSS feeds to the interface
-- Open a podcast app & subscribe to the podly endpoint
-  - For example, `http://localhost:5001/feed/1`
-- Select an episode & download
-- Wait patiently :). Transcription is the slowest part & takes about 1 minute per 15 minutes of podcast on an M3 macbook.
+---
 
-## How To Run
+## Installation
 
-Install ffmpeg
-
-```shell
+1. **Install FFmpeg:**
+```bash
 sudo apt install ffmpeg
 ```
 
-Copy `config/config.yml.example` into new file `config/config.yml`. Update `openai_api_key` with your key.
-
-```shell
+2. **Set up Python environment (with pipenv):**
+```bash
 pip install pipenv
 pipenv --python 3.11
 pipenv install
 pipenv shell
-python src/main.py
 ```
 
-## Remote Setup
-
-Podly works out of the box when running locally (see [Usage](#usage)). To run it on a remote server add SERVER to config/config.yml
-
-```
-SERVER=http://my.domain.com
-```
-
-Podly supports basic authentication. See below for example setup for `httpd.conf`.
-
-```
-LoadModule proxy_module modules/mod_proxy.so
-LoadModule proxy_http_module modules/mod_proxy_http.so
-
-ProxyPass / http://127.0.0.1:5001/
-RequestHeader set X-Forwarded-Proto http
-RequestHeader set X-Forwarded-Prefix /
-
-SetEnv proxy-chain-auth On
-
-# auth
-<Location />
-    AuthName "Registered User"
-    AuthType Basic
-    AuthUserFile /lib/protected.users
-    require valid-user
-</Location>
-```
-
-Add users by running:
-
-```
-sudo htpasswd -c /lib/protected.users [username]
-```
-
-Some apps will support basic auth in the URL like http://[username]:[pass]@my.domain.com
-
-## Ubuntu Service
-
-Add a service file to /etc/systemd/system/podly.service
-
-```
-[Unit]
-Description=Podly Podcast Service
-After=network.target
-
-[Service]
-User=yourusername
-Group=yourusername
-WorkingDirectory=/path/to/your/app
-ExecStart=/usr/bin/pipenv run python src/main.py
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-```
-
-enable the service
-
-```
-sudo systemctl daemon-reload
-sudo systemctl enable podly.service
-```
-
-## Database Update
-
-The database should automatically configure & upgrade on launch.
-
-After data model change run:
-
-```
-pipenv run flask --app ./src/main.py db migrate -m "[change description]"
-```
-
-On next launch the database should update.
-
-## FAQ
-
-Q: What does “whitelisted” mean in the UI?
-
-A: It means an episode is eligible for download and ad removal. By default, new episodes are automatically whitelisted (```automatically_whitelist_new_episodes```), and only a limited number of old episodes are auto-whitelisted (```number_of_episodes_to_whitelist_from_archive_of_new_feed```). This helps control costs by limiting how many episodes are processed. You can adjust these settings in your config.yml for more manual control.
-  
-Q: How can I enable whisper GPU acceleration?
-
-A: You must install the CUDA version of PyTorch to the virtual environment.
-  
-```pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118```
-
-## Contributing
-
-We welcome contributions to Podly! Here's how you can help:
-
-### Development Setup
-
-1. Fork the repository
-2. Clone your fork:
-   ```bash
-   git clone https://github.com/yourusername/podly.git
-   ```
-3. Create a new branch for your feature:
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
-
-### Running Tests
-
-Before submitting a pull request, you can run the same tests that run in CI:
-
-To prep your pipenv environment to run this script, you will need to first run:
-
+3. **Add API keys (if using OpenAI GPT):**
+Create a `.env` file or export your OpenAI credentials:
 ```bash
-pipenv install --dev
+export OPENAI_API_KEY=your_openai_api_key
+export OPENAI_ASSISTANT_ID=your_openai_assistant_id   # Only needed for assistant mode
 ```
 
-Then, to run the checks,
+---
+
+## Usage
+
+### Basic CLI
 ```bash
-scripts/ci.sh
+python strip_ads.py path/to/audio.mp3 --output path/to/output/
 ```
 
+### CLI Arguments
+- `input` (positional): Path to input `.mp3` file or directory
+- `--output`: Output directory (default: `output`)
+- `--llm`: LLM backend to use (`local` or `chatgpt`, default: `chatgpt`)
+- `--model`: Model to use (e.g., `gpt-4o`, `mixtral`, default: `gpt-4o`)
+- `--context`: Context mode (`stateless` or `assistant`, default: `stateless`)
 
-This will run all the necessary checks including:
-- Type checking with mypy
-- Code formatting checks
-- Unit tests
-- Linting
+### Example: OpenAI stateless mode
+```bash
+python strip_ads.py podcast.mp3 \
+  --llm chatgpt \
+  --model gpt-4o \
+  --context stateless
+```
 
-### Pull Request Process
+### Example: Local model via HTTP API (Ollama)
+```bash
+python strip_ads.py podcast.mp3 \
+  --llm local \
+  --model mixtral \
+  --context stateless
+```
 
-1. Ensure all tests pass locally
-2. Update the documentation if needed
-3. Create a Pull Request with a clear description of the changes
-4. Link any related issues
+### Example: Batch process a folder
+```bash
+python strip_ads.py /path/to/audio/folder/ --output /path/to/output/
+```
 
-### Code Style
+---
 
-- We use black for code formatting
-- Type hints are required for all new code
-- Follow existing patterns in the codebase
+## Configuration
+
+### System Prompt
+When using `stateless` context mode, you must include a system prompt at:
+```
+config/system_prompt.txt
+```
+This prompt guides the model in identifying ad segments.
+
+---
+
+## Notes
+
+- Transcripts are cached in `.cache_segments/` for speed and debugging
+- Segment classification uses 35-line transcript chunks
+- Minimum ad segment duration: 2.0 seconds
+- Minimum separation between ads: 1.0 second
+- Fade duration between audio segments is set to 500 milliseconds by default
+- Final output file includes a timestamp and model label in the filename
+- Local model must support the Ollama-compatible API at `http://localhost:11434/api/generate`
+
+---
+
+## Credits
+
+Developed as a lightweight CLI tool for automated podcast ad stripping using Whisper and LLM inference.
+
