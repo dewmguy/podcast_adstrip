@@ -53,13 +53,13 @@ def clip_segments_with_fade(
             )
         )
 
-    ffmpeg.concat(*trimmed_list, v=0, a=1).output(out_path).overwrite_output().run()
+    ffmpeg.concat(*trimmed_list, v=0, a=1).output(out_path).overwrite_output().run(quiet=True, capture_stdout=True, capture_stderr=True)
 
 
 def trim_file(in_path: Path, out_path: Path, start_ms: int, end_ms: int) -> None:
     ffmpeg.input(str(in_path)).filter(
         "atrim", start=start_ms / 1000.0, end=end_ms / 1000.0
-    ).output(str(out_path)).overwrite_output().run()
+    ).output(str(out_path)).overwrite_output().run(quiet=True, capture_stdout=True, capture_stderr=True)
 
 
 def split_audio(

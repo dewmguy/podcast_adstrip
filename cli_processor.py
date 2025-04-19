@@ -18,9 +18,9 @@ import litellm
 class CLIPodcastProcessor:
     def __init__(self, llm_mode: str = "local", local_model: str = "mixtral", gpt_model: str = "gpt-4o", context_mode: str = "stateless"):
         self.fade_ms = 500
-        self.min_confidence = 0.5
-        self.min_ad_segment_length_seconds = 2.0
-        self.min_ad_segment_separation_seconds = 3.0
+        self.min_confidence = 0.86
+        self.min_ad_segment_length_seconds = 3.0
+        self.min_ad_segment_separation_seconds = 4.0
         self.llm_mode = llm_mode
         self.local_model = local_model
         self.gpt_model = gpt_model
@@ -82,7 +82,7 @@ class CLIPodcastProcessor:
             out_path=str(output_path),
         )
 
-        print(f"Processing Done. Saved: {output_path}")
+        print(f"Processing Completed. File Saved: {output_path}")
 
     def _write_segments_for_debug(self, segments: List[Segment], path: Path):
         def round_timestamp(value: float) -> float:
@@ -161,10 +161,16 @@ class CLIPodcastProcessor:
     ) -> List[Tuple[float, float]]:
         all_ad_segments = []
         segment_dict = {s.start: s for s in segments}
+        
+        print(f"Parsing LLM Filter Suggestions.")
 
         for output in identifications:
             try:
-                print(f"{self.llm_mode} response: {output}")
+                parsed_json = json.loads(output)
+                parsed_json.setdefault("confidence", 0.0)
+                if parsed_json["confidence"] > 0:
+                    print(f"{self.llm_mode} response: {output}")
+                #print(f"{self.llm_mode} response: {output}")
                 parsed_json = json.loads(output)
                 if "confidence" not in parsed_json:
                     parsed_json["confidence"] = 0.0
@@ -188,6 +194,8 @@ class CLIPodcastProcessor:
     ) -> List[Tuple[int, int]]:
         ad_segments = sorted(ad_segments)
         merged = []
+
+        print(f"Re-encoding Audio File.")
 
         for start, end in ad_segments:
             if merged and start - merged[-1][1] <= self.min_ad_segment_separation_seconds:
